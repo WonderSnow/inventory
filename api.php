@@ -1,87 +1,53 @@
 <?php
 
-use Illuminate\Http\Middleware\CheckResponseForModifications;
+use Illuminate\Support\Str;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ApiAuthenticationController;
+use App\Models\CronJob;
+use App\Models\Endpoint;
 
-// Scripts & Styles...
-Route::get('/scripts/{script}', 'ScriptController@show')->middleware(CheckResponseForModifications::class);
-Route::get('/styles/{style}', 'StyleController@show')->middleware(CheckResponseForModifications::class);
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application. These
+| routes are loaded by the RouteServiceProvider within a group which
+| is assigned the "api" middleware group. Enjoy building your API!
+|
+*/
 
-// Global Search...
-Route::get('/search', 'SearchController@index');
 
-// Fields...
-Route::get('/{resource}/field/{field}', 'FieldController@show');
-Route::post('/{resource}/trix-attachment/{field}', 'TrixAttachmentController@store');
-Route::delete('/{resource}/trix-attachment/{field}', 'TrixAttachmentController@destroyAttachment');
-Route::delete('/{resource}/trix-attachment/{field}/{draftId}', 'TrixAttachmentController@destroyPending');
-Route::get('/{resource}/creation-fields', 'CreationFieldController@index');
-Route::get('/{resource}/{resourceId}/update-fields', 'UpdateFieldController@index');
-Route::get('/{resource}/{resourceId}/creation-pivot-fields/{relatedResource}', 'CreationPivotFieldController@index');
-Route::get('/{resource}/{resourceId}/update-pivot-fields/{relatedResource}/{relatedResourceId}', 'UpdatePivotFieldController@index');
-Route::get('/{resource}/{resourceId}/download/{field}', 'FieldDownloadController@show');
-Route::delete('/{resource}/{resourceId}/field/{field}', 'FieldDestroyController@handle');
-Route::delete('/{resource}/{resourceId}/{relatedResource}/{relatedResourceId}/field/{field}', 'PivotFieldDestroyController@handle');
+//private access
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/auth-test', function () {
+        return 'authentication test';
+    });
+    Route::post('/logout', [ApiAuthenticationController::class, 'logout']);
+});
 
-// Dashboards...
-Route::get('/dashboards/{dashboard}', 'DashboardController@index');
-Route::get('/dashboards/cards/{dashboard}', 'DashboardCardController@index');
+Route::get('/public-test', function () {
+    return 'public test';
+});
 
-// Actions...
-Route::get('/{resource}/actions', 'ActionController@index');
-Route::post('/{resource}/action', 'ActionController@store');
 
-// Filters...
-Route::get('/{resource}/filters', 'FilterController@index');
+//user authentication
+Route::post('/register', [ApiAuthenticationController::class, 'register']);
+Route::post('/login', [ApiAuthenticationController::class, 'login']);
 
-// Lenses...
-Route::get('/{resource}/lenses', 'LensController@index');
-Route::get('/{resource}/lens/{lens}', 'LensController@show');
-Route::get('/{resource}/lens/{lens}/count', 'LensResourceCountController@show');
-Route::delete('/{resource}/lens/{lens}', 'LensResourceDestroyController@handle');
-Route::delete('/{resource}/lens/{lens}/force', 'LensResourceForceDeleteController@handle');
-Route::put('/{resource}/lens/{lens}/restore', 'LensResourceRestoreController@handle');
-Route::get('/{resource}/lens/{lens}/actions', 'LensActionController@index');
-Route::post('/{resource}/lens/{lens}/action', 'LensActionController@store');
-Route::get('/{resource}/lens/{lens}/filters', 'LensFilterController@index');
+Route::any('/cron', function (Request $request) {
+    CronJob::create([]); 
+}); 
 
-// Cards / Metrics...
-Route::get('/metrics', 'DashboardMetricController@index');
-Route::get('/metrics/{metric}', 'DashboardMetricController@show');
-Route::get('/{resource}/metrics', 'MetricController@index');
-Route::get('/{resource}/metrics/{metric}', 'MetricController@show');
-Route::get('/{resource}/{resourceId}/metrics/{metric}', 'DetailMetricController@show');
-
-Route::get('/{resource}/lens/{lens}/metrics', 'LensMetricController@index');
-Route::get('/{resource}/lens/{lens}/metrics/{metric}', 'LensMetricController@show');
-
-Route::get('/cards', 'DashboardCardController@index');
-Route::get('/{resource}/cards', 'CardController@index');
-Route::get('/{resource}/lens/{lens}/cards', 'LensCardController@index');
-
-// Authorization Information...
-Route::get('/{resource}/relate-authorization', 'RelatableAuthorizationController@show');
-
-// Soft Delete Information...
-Route::get('/{resource}/soft-deletes', 'SoftDeleteStatusController@show');
-
-// Resource Management...
-Route::get('/{resource}', 'ResourceIndexController@handle');
-Route::get('/{resource}/count', 'ResourceCountController@show');
-Route::delete('/{resource}/detach', 'ResourceDetachController@handle');
-Route::put('/{resource}/restore', 'ResourceRestoreController@handle');
-Route::delete('/{resource}/force', 'ResourceForceDeleteController@handle');
-Route::get('/{resource}/{resourceId}', 'ResourceShowController@handle');
-Route::post('/{resource}', 'ResourceStoreController@handle');
-Route::put('/{resource}/{resourceId}', 'ResourceUpdateController@handle');
-Route::delete('/{resource}', 'ResourceDestroyController@handle');
-
-// Associatable Resources...
-Route::get('/{resource}/associatable/{field}', 'AssociatableController@index');
-Route::get('/{resource}/{resourceId}/attachable/{field}', 'AttachableController@index');
-Route::get('/{resource}/morphable/{field}', 'MorphableController@index');
-
-// Resource Attachment...
-Route::post('/{resource}/{resourceId}/attach/{relatedResource}', 'ResourceAttachController@handle');
-Route::post('/{resource}/{resourceId}/update-attached/{relatedResource}/{relatedResourceId}', 'AttachedResourceUpdateController@handle');
-Route::post('/{resource}/{resourceId}/attach-morphed/{relatedResource}', 'MorphedResourceAttachController@handle');
+Route::any('/v1/{params}', function (Request $request, $params) {
+    $method = Str::lower($request->getMethod()); 
+    $path = $request->getPathInfo(); 
+    $arr_path = explode("/", $path); 
+    $name = end($arr_path); 
+    $endpoint = Endpoint::whereMethod($method)->wherePath($name)->first(); 
+    return [
+        'params' => $endpoint, 
+        'method' => Str::lower($request->getMethod()), 
+    ]; 
+}); 
