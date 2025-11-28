@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Middleware\EnsureUserVerified;
 use Laravel\Nova\Actions\ActionResource;
 use Laravel\Nova\Http\Middleware\Authenticate;
 use Laravel\Nova\Http\Middleware\Authorize;
@@ -59,7 +58,7 @@ return [
     |
     */
 
-    'path' => '/admin',
+    'path' => '/nova',
 
     /*
     |--------------------------------------------------------------------------
@@ -104,7 +103,6 @@ return [
         DispatchServingNovaEvent::class,
         BootTools::class,
         Authorize::class,
-        EnsureUserVerified::class,
     ],
 
     /*
@@ -146,6 +144,6 @@ return [
     |
     */
 
-    'currency' => 'PHP',
+    'currency' => 'USD',
 
 ];
