@@ -1,130 +1,147 @@
 <?php
 
-namespace App\Providers;
+namespace Laravel\Nova;
 
-use Laravel\Nova\Nova;
-use App\Nova\Metrics\Users;
-use App\Nova\Metrics\Quotas;
-use Laravel\Nova\Cards\Help;
-use Laravel\Nova\Fields\Text;
-use App\Nova\Metrics\Products;
-use Laravel\Nova\Fields\Image;
-use App\Nova\Metrics\OrdersTrend;
-use Spatie\BackupTool\BackupTool;
-use App\Nova\Metrics\PendingOrders;
-use Illuminate\Support\Facades\Gate;
-use Runline\ProfileTool\ProfileTool;
-use App\Nova\Metrics\ConfirmedOrders;
-use App\Nova\Metrics\ProductCategories;
-use OptimistDigital\NovaSettings\NovaSettings;
-use Laravel\Nova\NovaApplicationServiceProvider;
-use Signifly\Nova\Cards\ProgressBar\ProgressBar;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
+use Laravel\Nova\Events\ServingNova;
 
-class NovaServiceProvider extends NovaApplicationServiceProvider
+class NovaServiceProvider extends ServiceProvider
 {
     /**
-     * Bootstrap any application services.
+     * Bootstrap any package services.
      *
      * @return void
      */
     public function boot()
     {
-        parent::boot();
+        if ($this->app->runningInConsole()) {
+            $this->registerPublishing();
+        }
 
-        NovaSettings::addSettingsFields([
-            Image::make('Logo'),
-        ]);
+        $this->registerResources();
+        $this->registerCarbonMacros();
+        $this->registerCollectionMacros();
+        $this->registerJsonVariables();
     }
 
     /**
-     * Register the Nova routes.
+     * Register the package's publishable resources.
      *
      * @return void
      */
-    protected function routes()
+    protected function registerPublishing()
     {
-        Nova::routes()
-                ->withAuthenticationRoutes()
-                ->withPasswordResetRoutes()
-                ->register();
+        $this->publishes([
+            __DIR__.'/Console/stubs/NovaServiceProvider.stub' => app_path('Providers/NovaServiceProvider.php'),
+        ], 'nova-provider');
+
+        $this->publishes([
+            __DIR__.'/../config/nova.php' => config_path('nova.php'),
+        ], 'nova-config');
+
+        $this->publishes([
+            __DIR__.'/../public' => public_path('vendor/nova'),
+        ], 'nova-assets');
+
+        $this->publishes([
+            __DIR__.'/../resources/lang' => resource_path('lang/vendor/nova'),
+        ], 'nova-lang');
+
+        $this->publishes([
+            __DIR__.'/../resources/views/partials' => resource_path('views/vendor/nova/partials'),
+        ], 'nova-views');
+
+        $this->publishes([
+            __DIR__.'/../database/migrations' => database_path('migrations'),
+        ], 'nova-migrations');
     }
 
     /**
-     * Register the Nova gate.
-     *
-     * This gate determines who can access Nova in non-local environments.
+     * Register the package resources such as routes, templates, etc.
      *
      * @return void
      */
-    protected function gate()
+    protected function registerResources()
     {
-        Gate::define('viewNova', function ($user) {
-            return true;
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'nova');
+        $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'nova');
+        $this->loadJsonTranslationsFrom(resource_path('lang/vendor/nova'));
+
+        if (Nova::runsMigrations()) {
+            $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        }
+
+        $this->registerRoutes();
+    }
+
+    /**
+     * Register the package routes.
+     *
+     * @return void
+     */
+    protected function registerRoutes()
+    {
+        Route::group($this->routeConfiguration(), function () {
+            $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
         });
     }
 
     /**
-     * Get the cards that should be displayed on the default Nova dashboard.
+     * Get the Nova route group configuration array.
      *
-     * @return array`
+     * @return array
      */
-    protected function cards()
+    protected function routeConfiguration()
     {
-
-        $orderToday = \App\Models\Order::whereStatus(\App\Models\Order::STATUS_CONFIRMED)->whereEmployeeId(auth()->user()->id)
-            ->whereDate('created_at', now())
-            ->count();
-
-        $quota_percentage = 0;
-        if ($orderToday && auth()->user()->quota) {
-            $quota_percentage =(( $orderToday / auth()->user()->quota ));
-        }
         return [
-            (new \Richardkeep\NovaTimenow\NovaTimenow)->timezones([
-                'Africa/Nairobi',
-                'America/Mexico_City',
-                'Australia/Sydney',
-                'Europe/Paris',
-                'Asia/Manila',
-                'Asia/Tokyo',
-            ])->defaultTimezone('Africa/Manila')
-            ->canSee(function () {
-                return config('novax.time_enabled');
-            })->width('1/4'),
-            Products::make()->width('1/4'),
-            PendingOrders::make()->width('1/4'),
-            ConfirmedOrders::make()->width('1/4'),
-            // Quotas::make(),
-            ProductCategories::make()->width('1/4'),
-            Users::make()->width('1/4'),
-            OrdersTrend::make()->width('1/4'),
-            (new ProgressBar)->options(['title' => 'Daily Quota', 'percentage' => $quota_percentage])
-                ->width('1/4')
+            'namespace' => 'Laravel\Nova\Http\Controllers',
+            'domain' => config('nova.domain', null),
+            // 'as' => 'nova.api.',
+            'prefix' => 'nova-api',
+            'middleware' => 'nova',
         ];
     }
 
     /**
-     * Get the extra dashboards that should be displayed on the Nova dashboard.
+     * Register the Nova Carbon macros.
      *
-     * @return array
+     * @return void
      */
-    protected function dashboards()
+    protected function registerCarbonMacros()
     {
-        return [];
+        Carbon::mixin(new Macros\FirstDayOfQuarter);
+        Carbon::mixin(new Macros\FirstDayOfPreviousQuarter);
     }
 
     /**
-     * Get the tools that should be listed in the Nova sidebar.
+     * Register the Nova JSON variables.
      *
-     * @return array
+     * @return void
      */
-    public function tools()
+    protected function registerJsonVariables()
     {
-        return [
-            (new ProfileTool)->canSee(fn () => config('novax.profile_enabled')),
-            (new BackupTool)->canSee(fn () => config('novax.back_up_enabled')),
-            (new NovaSettings)->canSee(fn () => config('novax.setting_enabled')),
-        ];
+        Nova::serving(function (ServingNova $event) {
+            // Load the default Nova translations.
+            Nova::translations(
+                resource_path('lang/vendor/nova/'.app()->getLocale().'.json')
+            );
+
+            Nova::provideToScript([
+                'appName' => Nova::name() ?? config('app.name', 'Laravel Nova'),
+                'timezone' => config('app.timezone', 'UTC'),
+                'translations' => Nova::allTranslations(),
+                'userTimezone' => Nova::resolveUserTimezone($event->request),
+                'pagination' => config('nova.pagination', 'links'),
+                'locale' => config('app.locale', 'en'),
+                'algoliaAppId' => config('services.algolia.appId'),
+                'algoliaApiKey' => config('services.algolia.apiKey'),
+                'version' => Nova::version(),
+            ]);
+        });
     }
 
     /**
@@ -134,6 +151,35 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
      */
     public function register()
     {
-        //
+        $this->commands([
+            Console\ActionCommand::class,
+            Console\AssetCommand::class,
+            Console\BaseResourceCommand::class,
+            Console\CardCommand::class,
+            Console\CustomFilterCommand::class,
+            Console\DashboardCommand::class,
+            Console\FilterCommand::class,
+            Console\FieldCommand::class,
+            Console\InstallCommand::class,
+            Console\LensCommand::class,
+            Console\PartitionCommand::class,
+            Console\PublishCommand::class,
+            Console\ResourceCommand::class,
+            Console\ResourceToolCommand::class,
+            Console\StubPublishCommand::class,
+            Console\TranslateCommand::class,
+            Console\ThemeCommand::class,
+            Console\ToolCommand::class,
+            Console\TrendCommand::class,
+            Console\UserCommand::class,
+            Console\ValueCommand::class,
+        ]);
+    }
+
+    protected function registerCollectionMacros()
+    {
+        Collection::macro('isAssoc', function () {
+            return Arr::isAssoc($this->toBase()->all());
+        });
     }
 }
