@@ -1,6 +1,8 @@
 <template>
   <div :class="`text-${field.textAlign}`">
-    <boolean-icon :value="field.value" />
+    <span class="font-bold">
+      &middot; &middot; &middot; &middot; &middot; &middot; &middot; &middot;
+    </span>
   </div>
 </template>
 

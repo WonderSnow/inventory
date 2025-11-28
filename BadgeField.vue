@@ -1,13 +1,5 @@
 <template>
-  <panel-item :field="field">
-    <template slot="value">
-      <badge
-        class="mt-1"
-        :label="field.label"
-        :extra-classes="field.typeClass"
-      />
-    </template>
-  </panel-item>
+  <div><badge :label="field.label" :extra-classes="field.typeClass" /></div>
 </template>
 
 <script>
@@ -18,6 +10,6 @@ export default {
     Badge,
   },
 
-  props: ['resource', 'resourceName', 'resourceId', 'field'],
+  props: ['resourceName', 'viaResource', 'viaResourceId', 'field'],
 }
 </script>

@@ -1,7 +1,5 @@
 <template>
-  <div :class="`text-${field.textAlign}`">
-    <boolean-icon :value="field.value" />
-  </div>
+  <div class="hidden" />
 </template>
 
 <script>

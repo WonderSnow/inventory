@@ -1,15 +1,15 @@
 <template>
-  <panel-item :field="field">
-    <template slot="value">
-      <p v-if="field.value" class="text-90">{{ formattedDate }}</p>
-      <p v-else>&mdash;</p>
-    </template>
-  </panel-item>
+  <div :class="`text-${field.textAlign}`">
+    <span v-if="field.value" class="whitespace-no-wrap">{{
+      formattedDate
+    }}</span>
+    <span v-else>&mdash;</span>
+  </div>
 </template>
 
 <script>
 export default {
-  props: ['resource', 'resourceName', 'resourceId', 'field'],
+  props: ['resourceName', 'field'],
 
   computed: {
     formattedDate() {

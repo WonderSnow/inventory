@@ -1,11 +1,16 @@
 <template>
-  <panel-item :field="field">
-    <template slot="value">
+  <default-field
+    :field="field"
+    :errors="errors"
+    :full-width-content="true"
+    :show-help-text="showHelpText"
+  >
+    <template slot="field">
       <div class="form-input form-input-bordered px-0 overflow-hidden">
         <textarea ref="theTextarea" />
       </div>
     </template>
-  </panel-item>
+  </default-field>
 </template>
 
 <style src="codemirror/lib/codemirror.css" />
@@ -65,6 +70,7 @@
 <style src="codemirror/theme/xq-light.css" />
 <style src="codemirror/theme/yeti.css" />
 <style src="codemirror/theme/zenburn.css" />
+
 <script>
 import CodeMirror from 'codemirror'
 
@@ -82,6 +88,7 @@ import 'codemirror/mode/xml/xml'
 import 'codemirror/mode/vue/vue'
 import 'codemirror/mode/dockerfile/dockerfile'
 import 'codemirror/keymap/vim'
+import 'codemirror/mode/sql/sql'
 import 'codemirror/mode/twig/twig'
 import 'codemirror/mode/htmlmixed/htmlmixed'
 
@@ -92,8 +99,10 @@ CodeMirror.defineMode('htmltwig', function (config, parserConfig) {
   )
 })
 
+import { FormField, HandlesValidationErrors } from 'laravel-nova'
+
 export default {
-  props: ['resource', 'resourceName', 'resourceId', 'field'],
+  mixins: [HandlesValidationErrors, FormField],
 
   data: () => ({ codemirror: null }),
 
@@ -108,14 +117,25 @@ export default {
         lineWrapping: true,
         lineNumbers: true,
         theme: 'dracula',
+        ...{ readOnly: this.isReadonly },
       },
       ...this.field.options,
-      ...{ readOnly: true },
     }
 
     this.codemirror = CodeMirror.fromTextArea(this.$refs.theTextarea, config)
-    this.codemirror.getDoc().setValue(this.field.value)
+
+    this.doc.on('change', (cm, changeObj) => {
+      this.value = cm.getValue()
+    })
+
+    this.doc.setValue(this.field.value)
     this.codemirror.setSize('100%', this.field.height)
+  },
+
+  computed: {
+    doc() {
+      return this.codemirror.getDoc()
+    },
   },
 }
 </script>
