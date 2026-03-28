@@ -1,0 +1,31 @@
+<dropdown-trigger class="h-9 flex items-center">
+    <?php if(isset($user->email)): ?>
+        <img
+            src="https://api.dicebear.com/9.x/micah/svg?seed=<?php echo e($user->name); ?>"
+            class="rounded-full w-8 h-8 mr-3"
+        />
+    <?php endif; ?>
+
+    <div class="text-left">
+        <div class="text-90">
+            <?php echo e($user->name ?? $user->email ?? __('Nova User')); ?>
+
+        </div>
+        <div class="text-90 text-xs">
+            <?php echo e($user->role); ?>
+
+        </div>
+    </div>
+</dropdown-trigger>
+
+<dropdown-menu slot="menu" width="200" direction="rtl">
+    <ul class="list-reset">
+        <li>
+            <a href="<?php echo e(route('nova.logout')); ?>" class="block no-underline text-90 hover:bg-30 p-3">
+                <?php echo e(__('Logout')); ?>
+
+            </a>
+        </li>
+    </ul>
+</dropdown-menu>
+<?php /**PATH D:\xampp\htdocs\inventory\resources\views/vendor/nova/partials/user.blade.php ENDPATH**/ ?>
